@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英文绘本漫画</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(180deg, #fef9f3 0%, #f0f7ff 100%);
+    min-height: 100vh; color: #333; padding: 20px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  .header { text-align: center; padding: 24px 0 18px; }
+  .header h1 { font-size: 26px; font-weight: 700; color: #4a5568; margin-bottom: 6px; }
+  .header p { font-size: 13px; color: #94a3b8; }
+  .input-section {
+    background: #fff; border-radius: 16px; padding: 20px;
+    box-shadow: 0 3px 16px rgba(180,190,220,0.15); margin-bottom: 20px;
+  }
+  .input-section label {
+    display: block; font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 8px;
+  }
+  .input-section .sub-label { font-size: 12px; color: #94a3b8; font-weight: 400; margin-left: 6px; }
+  .input-section textarea, .input-section input {
+    width: 100%;
+    border: 2px solid #e2e8f0; border-radius: 10px;
+    padding: 12px; font-size: 15px; line-height: 1.6;
+    outline: none; font-family: inherit;
+  }
+  .input-section textarea { min-height: 80px; resize: vertical; }
+  .input-section textarea:focus, .input-section input:focus { border-color: #93c5fd; }
+  .field { margin-bottom: 14px; }
+  .generate-btn {
+    margin-top: 4px; width: 100%; padding: 13px;
+    background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+    color: #fff; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .comic-card {
+    background: #fff; border-radius: 18px; padding: 10px; margin-bottom: 16px;
+    border: 2.5px dashed #cbd5e1; box-shadow: 0 3px 14px rgba(180,190,220,0.12);
+  }
+  .img-wrap {
+    position: relative; border-radius: 12px; overflow: hidden;
+    aspect-ratio: 1 / 1; background: #f8fafc;
+  }
+  .img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .panel-tag {
+    position: absolute; top: 8px; left: 8px; z-index: 2;
+    background: #fbbf24; color: #fff; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 10px;
+  }
+  /* 对话气泡 */
+  .speech {
+    position: absolute; z-index: 2; background: #fff; border: 2px solid #334155;
+    border-radius: 14px; padding: 6px 12px; font-size: 13px; font-weight: 600;
+    color: #1e293b; max-width: 70%; line-height: 1.3;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+  }
+  .speech.tl { top: 12px; left: 12px; }
+  /* 旁白文字直接印在图上：底部半透明黑底白字 */
+  .narration {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    background: rgba(0,0,0,0.65); color: #fff;
+    padding: 10px 14px; font-size: 14px; font-weight: 600;
+    line-height: 1.5; font-family: Georgia, "Times New Roman", serif;
+  }
+  .loading-mask {
+    position: absolute; inset: 0; background: rgba(255,255,255,0.92);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; z-index: 5; border-radius: 12px;
+  }
+  .spinner {
+    width: 28px; height: 28px; border: 3px solid #e0e7ff;
+    border-top-color: #818cf8; border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-mask span { font-size: 12px; color: #64748b; }
+  .error-box {
+    background: #fee2e2; color: #991b1b; padding: 12px 16px;
+    border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none;
+  }
+  .footer-note { text-align: center; margin-top: 20px; font-size: 12px; color: #b0b8c8; }
+  @media (max-width: 480px) {
+    .header h1 { font-size: 20px; }
+    .comic-card { padding: 8px; }
+    .narration { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>英文绘本漫画</h1>
+    <p>输入英文小故事，自动生成可爱手绘风绘本</p>
+  </div>
+
+  <div class="input-section">
+    <div class="field">
+      <label>输入英文文本</label>
+      <textarea id="englishInput" placeholder="例如：On a common day, our English teacher asked a boy if he was a single dog..."></textarea>
+    </div>
+    <div class="field">
+      <label>主角描述 <span class="sub-label">（可选，不填则用默认角色）</span></label>
+      <input id="characterInput" placeholder="例如：一个戴眼镜的男孩，穿蓝色校服，黑色短发">
+    </div>
+    <button class="generate-btn" id="btn">生成绘本</button>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <div id="comicResult"></div>
+
+  <div class="footer-note">清新可爱手绘风 · 英文原文印在图上</div>
+</div>
+
+<script>
+  const btn = document.getElementById('btn');
+  const input = document.getElementById('englishInput');
+  const charInput = document.getElementById('characterInput');
+  const result = document.getElementById('comicResult');
+  const errorBox = document.getElementById('errorBox');
+
+  btn.addEventListener('click', async () => {
+    const text = input.value.trim();
+    if (!text) { alert('请输入英文文本'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '正在生成，请耐心等待...';
+    errorBox.style.display = 'none';
+    result.innerHTML = '';
+
+    for (let i = 1; i <= 6; i++) {
+      result.insertAdjacentHTML('beforeend', `
+        <div class="comic-card">
+          <div class="img-wrap">
+            <div class="loading-mask">
+              <div class="spinner"></div><span>第 ${i} 格生成中...</span>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, character: charInput.value.trim() })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || '生成失败');
+
+      result.innerHTML = '';
+      (data.panels || []).forEach((p, idx) => {
+        result.insertAdjacentHTML('beforeend', `
+          <div class="comic-card">
+            <div class="img-wrap">
+              <span class="panel-tag">${idx + 1}</span>
+              ${p.image_url ? `<img src="${p.image_url}" alt="panel ${idx+1}">` : ''}
+              ${p.dialogue ? `<div class="speech tl">"${p.dialogue}"</div>` : ''}
+              <div class="narration">${p.original_text || ''}</div>
+            </div>
+          </div>
+        `);
+      });
+    } catch (e) {
+      errorBox.textContent = '出错了：' + e.message;
+      errorBox.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '重新生成';
+    }
+  });
+</script>
+</body>
+</html>
